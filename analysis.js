@@ -110,7 +110,7 @@ export function renderSummaryTable(containerEl, summary) {
 }
 
 /* =========================================================
-   NEW: Modelling features (single session)
+   Modelling features (single session)
    ========================================================= */
 
 export function computeSessionFeatures(session) {
@@ -129,6 +129,34 @@ export function computeSessionFeatures(session) {
     .map(e => e.ms);
 
   const ikts = deltas(typingKeyTimes).map(x => Math.min(x, 2000)); // match app clipping
+
+  // ---- Typing: "within-word" IKTs (matches app behaviour: reset on word_shown) ----
+  const typingTimeline = events
+    .filter(e =>
+      inWindow(e.ms, typingWindow) &&
+      (e?.t === "word_shown" || (e?.t === "key" && (e.k === "K" || e.k === "B")))
+    )
+    .slice()
+    .sort((a, b) => a.ms - b.ms);
+
+  const iktsWithinWord = [];
+  let lastKeyMsWithin = null;
+
+  for (const e of typingTimeline) {
+    if (e.t === "word_shown") {
+      // app resets lastKeyDownMs when a new word appears
+      lastKeyMsWithin = null;
+      continue;
+    }
+    if (e.t === "key" && (e.k === "K" || e.k === "B")) {
+      if (lastKeyMsWithin !== null) {
+        const dt = e.ms - lastKeyMsWithin;
+        iktsWithinWord.push(Math.min(dt, 2000)); // keep same clipping as app
+      }
+      lastKeyMsWithin = e.ms;
+    }
+  }
+
 
   const typingSubmits = events.filter(e => e?.t === "typing_submit" && inWindow(e.ms, typingWindow));
   const typingSubmitTimes = typingSubmits.map(e => e.ms);
@@ -193,7 +221,8 @@ export function computeSessionFeatures(session) {
   const tapMissGaps = deltas(tapMissTimes);
 
   // ---- Cross-task coupling (single session descriptors, not inference) ----
-  const iktVar = variance(ikts);
+  const iktVar = variance(ikts); // global
+  const iktVarWithinWord = variance(iktsWithinWord); // app-matched
   const rtVar = variance(rts);
 
   // ---- Outputs (keep primitive, CSV-friendly) ----
@@ -204,7 +233,9 @@ export function computeSessionFeatures(session) {
     },
 
     typing: {
-      ikt: seriesSummary(ikts),
+      ikt: seriesSummary(ikts, { clipMax: 2000 }), // global (includes between-word pauses)
+      iktWithinWord: seriesSummary(iktsWithinWord, { clipMax: 2000 }), // app-matched
+
       submits: {
         count: typingSubmits.length,
         ok: typingSubmits.reduce((a, s) => a + (Number(s.ok) === 1 ? 1 : 0), 0),
@@ -265,7 +296,10 @@ export function computeSessionFeatures(session) {
       iktVar,
       rtVar,
       // simple ratio descriptor (avoid pretending it's a correlation)
-      varRatioRtToIkt: (iktVar > 0 && rtVar > 0) ? Number((rtVar / iktVar).toFixed(3)) : null
+      varRatioRtToIkt: (iktVar > 0 && rtVar > 0) ? Number((rtVar / iktVar).toFixed(3)) : null,
+      iktVarWithinWord,
+      varRatioRtToIktWithinWord:
+        (iktVarWithinWord > 0 && rtVar > 0) ? Number((rtVar / iktVarWithinWord).toFixed(3)) : null
     },
 
     events: {
@@ -351,7 +385,8 @@ export function renderSessionReport(containerEl, session) {
   // 3) Modelling features (high value)
   wrap.appendChild(card("Typing Features", [
     `attempts=${summary.typingAttempts}, accuracy=${summary.typingAccuracyPct}%`,
-    `IKT mean=${fmtMs(features.typing.ikt.mean)}, std=${fmtMs(features.typing.ikt.std)}, IQR=${fmtMs(features.typing.ikt.iqr)}, CV=${fmt(features.typing.ikt.cv)}`,
+    `IKT (global) mean=${fmtMs(features.typing.ikt.mean)}, std=${fmtMs(features.typing.ikt.std)}, IQR=${fmtMs(features.typing.ikt.iqr)}, p95=${fmtMs(features.typing.ikt.p95)}, max=${fmtMs(features.typing.ikt.max)}, clipped=${fmt(features.typing.ikt.clippedPct)}%`,
+    `IKT (within-word) mean=${fmtMs(features.typing.iktWithinWord.mean)}, std=${fmtMs(features.typing.iktWithinWord.std)}, IQR=${fmtMs(features.typing.iktWithinWord.iqr)}, p95=${fmtMs(features.typing.iktWithinWord.p95)}, max=${fmtMs(features.typing.iktWithinWord.max)}, clipped=${fmt(features.typing.iktWithinWord.clippedPct)}%`,
     `drift: IKT Δ(early→late)=${fmtMs(features.typing.drift.iktDeltaEarlyLate)}, acc Δ(early→late)=${fmt(features.typing.drift.accuracyDeltaEarlyLate)}pp`,
     `error recovery: wrong→next correct (median)=${fmtMs(features.typing.errorDynamics.wrongToNextCorrect.median)}, backspace→next correct (median)=${fmtMs(features.typing.errorDynamics.backspaceToNextCorrect.median)}`,
     `error gaps: (median)=${fmtMs(features.typing.errorDynamics.errorGapMs.median)}`
@@ -697,20 +732,56 @@ function median(xs) {
   return quantile(s, 0.5);
 }
 
-function seriesSummary(xs) {
+function seriesSummary(xs, opts = {}) {
+  const clipMax = Number.isFinite(opts.clipMax) ? opts.clipMax : null;
+
   if (!xs || !xs.length) {
-    return { n: 0, mean: null, std: null, median: null, iqr: null, cv: null };
+    return {
+      n: 0,
+      mean: null,
+      std: null,
+      median: null,
+      iqr: null,
+      cv: null,
+      min: null,
+      max: null,
+      p90: null,
+      p95: null,
+      clippedPct: null
+    };
   }
+
+  const s = xs.slice().sort((a, b) => a - b);
+
   const m = mean(xs);
   const sd = std(xs);
   const cv = (m && sd) ? sd / m : null;
+
+  const minV = s[0];
+  const maxV = s[s.length - 1];
+
+  const p90 = quantile(s, 0.90);
+  const p95 = quantile(s, 0.95);
+
+  let clippedPct = null;
+  if (clipMax !== null) {
+    const clipped = xs.reduce((acc, v) => acc + (v >= clipMax ? 1 : 0), 0);
+    clippedPct = xs.length ? Number((100 * clipped / xs.length).toFixed(1)) : null;
+  }
+
   return {
     n: xs.length,
     mean: m !== null ? Math.round(m) : null,
     std: sd !== null ? Math.round(sd) : null,
     median: median(xs) !== null ? Math.round(median(xs)) : null,
     iqr: iqr(xs) !== null ? Math.round(iqr(xs)) : null,
-    cv: cv !== null ? Number(cv.toFixed(3)) : null
+    cv: cv !== null ? Number(cv.toFixed(3)) : null,
+
+    min: Number.isFinite(minV) ? Math.round(minV) : null,
+    max: Number.isFinite(maxV) ? Math.round(maxV) : null,
+    p90: p90 !== null ? Math.round(p90) : null,
+    p95: p95 !== null ? Math.round(p95) : null,
+    clippedPct
   };
 }
 

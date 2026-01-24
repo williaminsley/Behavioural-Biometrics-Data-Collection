@@ -400,6 +400,225 @@ export function renderSessionReport(containerEl, session) {
    Helpers
    ========================================================= */
 
+/* =========================================================
+   NEW HELPERS: variability + splitting + drift
+   (safe, single-session, CSV-friendly)
+   ========================================================= */
+
+// ---------- numeric guards ----------
+function toFiniteNumber(x) {
+  const n = typeof x === "number" ? x : Number(x);
+  return Number.isFinite(n) ? n : null;
+}
+
+function compactNumbers(xs) {
+  if (!Array.isArray(xs)) return [];
+  const out = [];
+  for (const x of xs) {
+    const n = toFiniteNumber(x);
+    if (n !== null) out.push(n);
+  }
+  return out;
+}
+
+function sortedAsc(xs) {
+  const arr = xs.slice();
+  arr.sort((a, b) => a - b);
+  return arr;
+}
+
+// ---------- variability: variance / std / IQR ----------
+function variancePop(xs) {
+  const a = compactNumbers(xs);
+  const n = a.length;
+  if (n === 0) return null;
+  const m = a.reduce((s, v) => s + v, 0) / n;
+  let s2 = 0;
+  for (const v of a) s2 += (v - m) * (v - m);
+  return s2 / n;
+}
+
+// sample variance (n-1). More common for inferential work.
+function varianceSample(xs) {
+  const a = compactNumbers(xs);
+  const n = a.length;
+  if (n < 2) return null;
+  const m = a.reduce((s, v) => s + v, 0) / n;
+  let s2 = 0;
+  for (const v of a) s2 += (v - m) * (v - m);
+  return s2 / (n - 1);
+}
+
+function stdPop(xs) {
+  const v = variancePop(xs);
+  return v === null ? null : Math.sqrt(v);
+}
+
+function stdSample(xs) {
+  const v = varianceSample(xs);
+  return v === null ? null : Math.sqrt(v);
+}
+
+function quantileSorted(sorted, q) {
+  if (!sorted.length) return null;
+  const pos = (sorted.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  const a = sorted[base];
+  const b = sorted[base + 1];
+  if (b === undefined) return a;
+  return a + rest * (b - a);
+}
+
+function medianOf(xs) {
+  const a = compactNumbers(xs);
+  if (!a.length) return null;
+  return quantileSorted(sortedAsc(a), 0.5);
+}
+
+function iqrOf(xs) {
+  const a = compactNumbers(xs);
+  if (!a.length) return null;
+  const s = sortedAsc(a);
+  const q1 = quantileSorted(s, 0.25);
+  const q3 = quantileSorted(s, 0.75);
+  if (q1 === null || q3 === null) return null;
+  return q3 - q1;
+}
+
+// ---------- window splitting ----------
+function windowDurationMs(w) {
+  if (!w?.startMs || !w?.endMs) return null;
+  const dur = w.endMs - w.startMs;
+  return dur > 0 ? dur : null;
+}
+
+function splitWindowIntoBins(w, nBins = 3) {
+  const dur = windowDurationMs(w);
+  if (dur === null) return null;
+
+  const bins = [];
+  for (let i = 0; i < nBins; i++) {
+    const a = w.startMs + (dur * i) / nBins;
+    const b = w.startMs + (dur * (i + 1)) / nBins;
+    bins.push({ startMs: a, endMs: b });
+  }
+  return bins;
+}
+
+function binIndexForMs(ms, w, nBins = 3) {
+  const dur = windowDurationMs(w);
+  if (dur === null) return null;
+  const t = toFiniteNumber(ms);
+  if (t === null) return null;
+
+  const r = (t - w.startMs) / dur;
+  if (r < 0 || r > 1) return null;
+  const idx = Math.min(nBins - 1, Math.floor(r * nBins));
+  return idx;
+}
+
+function partitionByTimeBins(items, w, nBins = 3, timeKey = "ms") {
+  const bins = Array.from({ length: nBins }, () => []);
+  if (!Array.isArray(items) || !w?.startMs || !w?.endMs) return bins;
+
+  for (const it of items) {
+    const ms = toFiniteNumber(it?.[timeKey]);
+    const idx = binIndexForMs(ms, w, nBins);
+    if (idx === null) continue;
+    bins[idx].push(it);
+  }
+  return bins;
+}
+
+// ---------- drift helpers (thirds + optional slope) ----------
+function meanOf(xs) {
+  const a = compactNumbers(xs);
+  if (!a.length) return null;
+  return a.reduce((s, v) => s + v, 0) / a.length;
+}
+
+// simple OLS slope of y vs x (both arrays same length)
+function slopeOLS(xs, ys) {
+  const x = compactNumbers(xs);
+  const y = compactNumbers(ys);
+  const n = Math.min(x.length, y.length);
+  if (n < 2) return null;
+
+  const mx = x.slice(0, n).reduce((s, v) => s + v, 0) / n;
+  const my = y.slice(0, n).reduce((s, v) => s + v, 0) / n;
+
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = x[i] - mx;
+    num += dx * (y[i] - my);
+    den += dx * dx;
+  }
+  if (den === 0) return null;
+  return num / den;
+}
+
+/**
+ * Compute drift over thirds for a list of (ms, value) points.
+ * Returns CSV-friendly primitives: early/mid/late mean + early→late delta,
+ * plus optional slope per second using bin-centres.
+ */
+function driftOverThirds(points, w, valueKey = "v") {
+  const out = {
+    meanEarly: null,
+    meanMid: null,
+    meanLate: null,
+    deltaEarlyLate: null,
+    slopePerSec: null,
+    nEarly: 0,
+    nMid: 0,
+    nLate: 0
+  };
+
+  const dur = windowDurationMs(w);
+  if (dur === null) return out;
+
+  const bins = partitionByTimeBins(points, w, 3, "ms");
+  const vals = bins.map(bin => compactNumbers(bin.map(p => p?.[valueKey])));
+
+  const m0 = meanOf(vals[0]);
+  const m1 = meanOf(vals[1]);
+  const m2 = meanOf(vals[2]);
+
+  out.meanEarly = m0 === null ? null : Math.round(m0);
+  out.meanMid = m1 === null ? null : Math.round(m1);
+  out.meanLate = m2 === null ? null : Math.round(m2);
+
+  out.nEarly = vals[0].length;
+  out.nMid = vals[1].length;
+  out.nLate = vals[2].length;
+
+  if (m0 !== null && m2 !== null) out.deltaEarlyLate = Math.round(m2 - m0);
+
+  // slope using bin-centre times (seconds) and bin means (raw, not rounded)
+  const centresSec = [
+    (w.startMs + dur * (1 / 6)) / 1000,
+    (w.startMs + dur * (3 / 6)) / 1000,
+    (w.startMs + dur * (5 / 6)) / 1000
+  ];
+  const meansRaw = [m0, m1, m2];
+
+  // Only fit slope if we have >=2 non-null bin means
+  const xs = [];
+  const ys = [];
+  for (let i = 0; i < 3; i++) {
+    if (meansRaw[i] === null) continue;
+    xs.push(centresSec[i]);
+    ys.push(meansRaw[i]);
+  }
+  const sl = slopeOLS(xs, ys);
+  out.slopePerSec = sl === null ? null : Number(sl.toFixed(6));
+
+  return out;
+}
+
+
 function inferWindows(events) {
   // typing window: first word_shown → typing_end
   const firstWord = events.find(e => e?.t === "word_shown");

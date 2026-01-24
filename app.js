@@ -2,7 +2,7 @@
 // Imports
 // ==========================
 import { WORDS, WORD_META } from "./words.js";
-import { computeSummary, summaryToCSVRow, downloadCSV, renderSummaryTable } from "./analysis.js";
++import { computeSummary, summaryToCSVRow, downloadCSV, renderSessionReport } from "./analysis.js";
 // ==========================
 // Utilities
 // ==========================
@@ -572,11 +572,10 @@ function bindResultsUI() {
     setScreen("screen-context");
   });
 
-  UI.btnViewLeaderboard().addEventListener("click", () => {
-    // stub until firebase
-    UI.leaderboardList().textContent =
-      "Leaderboard will appear here once Firebase is enabled.";
-    setScreen("screen-leaderboard");
+  UI.btnViewData().addEventListener("click", () => {
+    if (!session) return;
+    renderSessionReport(UI.dataSummary(), session);
+    setScreen("screen-data");
   });
 }
 
@@ -591,9 +590,7 @@ function bindDataUI() {
   UI.btnViewData().addEventListener("click", () => {
     if (!session) return;
 
-    const summary = computeSummary(session);
-    renderSummaryTable(UI.dataSummary(), summary);
-
+    renderSessionReport(UI.dataSummary(), session);
     setScreen("screen-data");
   });
 

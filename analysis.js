@@ -10,7 +10,9 @@ export {
 
 export {
   summaryToCSVRow,
-  downloadCSV
+  downloadCSV,
+  flattenFeaturesForAuth,
+  authFeaturesToCSVRow
 } from "./analysis.export.js";
 
 export {

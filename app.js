@@ -10,6 +10,7 @@ import {
   flattenFeaturesForAuth,
   authFeaturesToCSVRow,
   generateWindows
+  renderSessionReport
 } from "./analysis.js";
 // ==========================
 // Utilities
@@ -582,9 +583,15 @@ function bindResultsUI() {
 
   UI.btnViewData().addEventListener("click", () => {
     if (!session) return;
-    renderSessionReport(UI.dataSummary(), session);
+
+    renderSessionReport(
+      document.getElementById("dataSummary"),
+      session
+    );
+
     setScreen("screen-data");
   });
+
 }
 
 function bindLeaderboardUI() {

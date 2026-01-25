@@ -5,11 +5,10 @@ import { WORDS, WORD_META } from "./words.js";
 import {
   computeSummary,
   computeSessionFeatures,
-  summaryToCSVRow,
   downloadCSV,
   flattenFeaturesForAuth,
   authFeaturesToCSVRow,
-  generateWindows
+  generateWindows,
   renderSessionReport
 } from "./analysis.js";
 // ==========================
@@ -581,17 +580,18 @@ function bindResultsUI() {
     setScreen("screen-context");
   });
 
+  // Results -> Data
   UI.btnViewData().addEventListener("click", () => {
     if (!session) return;
 
-    renderSessionReport(
-      document.getElementById("dataSummary"),
-      session
-    );
-
-    setScreen("screen-data");
+    setScreen("screen-data");                 // 1) switch screen first
+    renderSessionReport(UI.dataSummary(), session); // 2) render into #dataSummary
   });
 
+  // Results -> Leaderboard (even if not implemented yet, the button should navigate)
+  UI.btnViewLeaderboard().addEventListener("click", () => {
+    setScreen("screen-leaderboard");
+  });
 }
 
 function bindLeaderboardUI() {
@@ -601,14 +601,6 @@ function bindLeaderboardUI() {
 }
 
 function bindDataUI() {
-  // View Data (Results -> Data)
-  UI.btnViewData().addEventListener("click", () => {
-    if (!session) return;
-
-    renderSessionReport(UI.dataSummary(), session);
-    setScreen("screen-data");
-  });
-
   // Back (Data -> Results)
   UI.btnBackToResultsFromData().addEventListener("click", () => {
     setScreen("screen-results");

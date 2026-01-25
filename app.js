@@ -613,9 +613,13 @@ function bindDataUI() {
     const summary = computeSummary(session);
     const windows = generateWindows(session.events, 30000, 15000); // 30s, 50% overlap
 
+    let header = null;
+    const rows = [];
+
     windows.forEach(w => {
       const features = computeSessionFeatures(session, w);
       const flatAuth = flattenFeaturesForAuth(summary, features);
+      if (!flatAuth) return;
 
       flatAuth.windowIndex = w.windowIndex;
       flatAuth.windowStartMs = w.startMs;
@@ -623,12 +627,22 @@ function bindDataUI() {
 
       const authCSV = authFeaturesToCSVRow(flatAuth);
 
-      downloadCSV(
-        `auth_window_${w.windowIndex}.csv`,
-        authCSV.header,
-        authCSV.row
-      );
+      if (!header) header = authCSV.header;
+      rows.push(authCSV.row);
     });
+
+    if (!header || rows.length === 0) {
+      alert("No window rows to export yet.");
+      return;
+    }
+
+    // IMPORTANT: downloadCSV() accepts a single 'row' string; we pass many rows joined by '\n'
+    downloadCSV(
+      `auth_windows_${summary.sessionId}.csv`,
+      header,
+      rows.join("\n")
+    );
+
   });
 
 }
@@ -679,104 +693,6 @@ function showResults() {
 // ==========================
 // Cleanup
 // ==========================
-function renderDataSummary(s) {
-  const t = s.rounds.typing;
-  const tap = s.rounds.tapping;
-
-  const typingAcc =
-    t.attempts ? Math.round((t.correct / t.attempts) * 100) : 0;
-
-  const tapTotal = (tap.hits || 0) + (tap.misses || 0);
-  const tapAcc =
-    tapTotal ? Math.round(((tap.hits || 0) / tapTotal) * 100) : 0;
-
-  return `
-    <div class="card">
-      <h3>Session</h3>
-      <p><strong>sessionId:</strong> ${s.sessionId}</p>
-      <p><strong>participantId:</strong> ${s.participantId}</p>
-      <p><strong>createdAt:</strong> ${s.createdAtClientISO}</p>
-    </div>
-
-    <div class="card">
-      <h3>Typing</h3>
-      <p><strong>score:</strong> ${t.score}</p>
-      <p><strong>attempts:</strong> ${t.attempts}</p>
-      <p><strong>correct:</strong> ${t.correct}</p>
-      <p><strong>accuracy:</strong> ${typingAcc}%</p>
-      <p><strong>meanIktMs:</strong> ${t.meanIktMs ?? "—"}</p>
-      <p><strong>reactionMs:</strong> ${t.reactionMs ?? "—"}</p>
-    </div>
-
-    <div class="card">
-      <h3>Tapping</h3>
-      <p><strong>score:</strong> ${tap.score}</p>
-      <p><strong>hits:</strong> ${tap.hits}</p>
-      <p><strong>misses:</strong> ${tap.misses}</p>
-      <p><strong>accuracy:</strong> ${tapAcc}%</p>
-      <p><strong>meanRtMs:</strong> ${tap.meanRtMs ?? "—"}</p>
-    </div>
-
-    <div class="card">
-      <h3>Events</h3>
-      <p><strong>event count:</strong> ${s.events.length}</p>
-    </div>
-  `;
-}
-
-function downloadSessionCSV(s) {
-  // Simple “events.csv” export (1 row per event)
-  // This is the most useful format for modelling later.
-  const rows = [];
-  const header = Object.keys(s.events[0] || { t: "", ms: "", dt: "", tISO: "" });
-  rows.push(header);
-
-  for (const ev of s.events) {
-    // Ensure stable columns (fill blanks if some keys missing)
-    const allKeys = new Set(header);
-    Object.keys(ev).forEach(k => allKeys.add(k));
-
-    // If new keys appeared, expand header + backfill old rows
-    if (allKeys.size !== header.length) {
-      const newHeader = Array.from(allKeys);
-      // backfill previous rows to new header length
-      const oldHeader = header.slice();
-      header.length = 0;
-      header.push(...newHeader);
-
-      for (let i = 0; i < rows.length; i++) {
-        const rowObj = {};
-        oldHeader.forEach((k, idx) => rowObj[k] = rows[i][idx]);
-        rows[i] = header.map(k => rowObj[k] ?? "");
-      }
-    }
-
-    rows.push(
-      header.map(k => csvCell(ev[k]))
-    );
-  }
-
-  const csv = rows.map(r => r.join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `session_${s.sessionId}_events.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-
-  URL.revokeObjectURL(url);
-}
-
-function csvCell(v) {
-  if (v === null || v === undefined) return "";
-  const s = String(v);
-  // escape quotes + wrap if needed
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
 
 function clearTimers() {
   clearTimeout(typingEndTimeout);

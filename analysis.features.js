@@ -107,7 +107,13 @@ export function computeSessionFeatures(session, windowOverride = null) {
       accuracyPct: submits.length
         ? Math.round(100 * correctTimes.length / submits.length)
         : 0,
-      driftIkt: driftDelta(keyEvents, typingWindow),
+      driftIkt: driftDelta(
+        deltas(keyEvents)
+            .map((d, i) => ({ ms: keyEvents[i + 1], v: Math.min(d, 2000) }))
+            .filter(p => isFiniteNumber(p.ms) && isFiniteNumber(p.v)),
+        typingWindow,
+        true
+        ),
       errorRecoveryWrong: seriesSummary(
         recoveryTimes(wrongTimes, correctTimes)
       )

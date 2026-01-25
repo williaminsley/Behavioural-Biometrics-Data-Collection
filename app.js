@@ -194,6 +194,7 @@ const UI = {
   // data
   btnViewData: () => el("btnViewData"),
   btnDownloadCSV: () => el("btnDownloadCSV"),
+  btnDownloadEventsCSV: () => el("btnDownloadEventsCSV"),
   btnBackToResultsFromData: () => el("btnBackToResultsFromData"),
   dataSummary: () => el("dataSummary")
 };
@@ -645,6 +646,12 @@ function bindDataUI() {
 
   });
 
+  // Download Events CSV (1 row per event)
+  UI.btnDownloadEventsCSV().addEventListener("click", () => {
+    if (!session) return;
+    downloadEventsCSV(session);
+  });
+
 }
 
 function computeTapScore(tap) {
@@ -693,6 +700,55 @@ function showResults() {
 // ==========================
 // Cleanup
 // ==========================
+
+function downloadEventsCSV(s) {
+  const events = Array.isArray(s?.events) ? s.events : [];
+  if (!events.length) {
+    alert("No events to export.");
+    return;
+  }
+
+  // Collect union of keys across all events for a stable rectangular CSV
+  const keys = new Set();
+  for (const ev of events) Object.keys(ev || {}).forEach(k => keys.add(k));
+
+  // Ensure core keys first (nice for readability)
+  const core = ["t", "ms", "dt", "tISO"];
+  core.forEach(k => keys.delete(k));
+  keys.delete("sessionId");
+  keys.delete("participantId");
+
+  const header = [
+    "sessionId",
+    "participantId",
+    ...core,
+    ...Array.from(keys).sort()
+  ];
+
+  const rows = events.map(ev => {
+    const rowObj = {
+      sessionId: s.sessionId ?? "",
+      participantId: s.participantId ?? "",
+      ...(ev || {})
+    };
+
+    return header.map(k => csvCell(rowObj[k])).join(",");
+  });
+
+  downloadCSV(
+    `events_${s.sessionId}.csv`,
+    header.join(","),
+    rows.join("\n")
+  );
+}
+
+// CSV cell escape (commas/quotes/newlines)
+function csvCell(v) {
+  if (v === null || v === undefined) return "";
+  const s = String(v);
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
 
 function clearTimers() {
   clearTimeout(typingEndTimeout);

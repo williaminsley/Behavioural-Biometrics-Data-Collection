@@ -4,9 +4,11 @@
 import { WORDS, WORD_META } from "./words.js";
 import {
   computeSummary,
+  computeSessionFeatures,
   summaryToCSVRow,
   downloadCSV,
-  renderSessionReport
+  flattenFeaturesForAuth,
+  authFeaturesToCSVRow
 } from "./analysis.js";
 // ==========================
 // Utilities
@@ -608,10 +610,20 @@ function bindDataUI() {
   UI.btnDownloadCSV().addEventListener("click", () => {
     if (!session) return;
 
+    // ---- Existing summary (keep if you want both)
     const summary = computeSummary(session);
-    const { header, row } = summaryToCSVRow(summary);
 
-    downloadCSV(`session_${session.sessionId}_summary.csv`, header, row);
+    // ---- NEW: authentication features
+    const features = computeSessionFeatures(session);
+    const flatAuth = flattenFeaturesForAuth(summary, features);
+    const authCSV = authFeaturesToCSVRow(flatAuth);
+
+    // ---- Download auth-ready feature vector
+    downloadCSV(
+      "auth_features.csv",
+      authCSV.header,
+      authCSV.row
+    );
   });
 }
 

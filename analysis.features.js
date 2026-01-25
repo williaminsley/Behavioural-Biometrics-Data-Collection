@@ -52,11 +52,11 @@ export function computeSummary(session) {
   };
 }
 
-export function computeSessionFeatures(session) {
+export function computeSessionFeatures(session, windowOverride = null) {
   if (!session) return null;
 
   const events = Array.isArray(session.events) ? session.events : [];
-  const { typingWindow, tappingWindow } = inferWindows(events);
+  const { typingWindow, tappingWindow } = inferWindows(events, windowOverride);
 
   // ---------- Typing IKTs ----------
   const keyEvents = events
@@ -150,7 +150,14 @@ export function computeSessionFlags(session, features) {
    HELPERS
    ========================= */
 
-function inferWindows(events) {
+function inferWindows(events, override = null) {
+  if (override?.startMs != null && override?.endMs != null) {
+    return {
+      typingWindow: { startMs: override.startMs, endMs: override.endMs },
+      tappingWindow: { startMs: override.startMs, endMs: override.endMs }
+    };
+  }
+
   const typingStart = events.find(e => e.t === "word_shown")?.ms;
   const typingEnd = [...events].reverse().find(e => e.t === "typing_end")?.ms;
 
@@ -161,6 +168,27 @@ function inferWindows(events) {
     typingWindow: { startMs: typingStart, endMs: typingEnd },
     tappingWindow: { startMs: tappingStart, endMs: tappingEnd }
   };
+}
+
+export function generateWindows(events, windowMs, stepMs = windowMs) {
+  const times = events.map(e => e.ms).filter(isFiniteNumber);
+  if (!times.length) return [];
+
+  const start = Math.min(...times);
+  const end = Math.max(...times);
+
+  const windows = [];
+  let idx = 0;
+
+  for (let t = start; t + windowMs <= end; t += stepMs) {
+    windows.push({
+      windowIndex: idx++,
+      startMs: t,
+      endMs: t + windowMs
+    });
+  }
+
+  return windows;
 }
 
 function inWindow(ms, w) {

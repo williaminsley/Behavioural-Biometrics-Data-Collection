@@ -4,7 +4,8 @@
 export {
   computeSummary,
   computeSessionFeatures,
-  computeSessionFlags
+  computeSessionFlags,
+  generateWindows
 } from "./analysis.features.js";
 
 export {

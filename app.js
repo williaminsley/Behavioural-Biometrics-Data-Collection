@@ -610,21 +610,27 @@ function bindDataUI() {
   UI.btnDownloadCSV().addEventListener("click", () => {
     if (!session) return;
 
-    // ---- Existing summary (keep if you want both)
     const summary = computeSummary(session);
+    const windows = generateWindows(session.events, 30000, 15000); // 30s, 50% overlap
 
-    // ---- NEW: authentication features
-    const features = computeSessionFeatures(session);
-    const flatAuth = flattenFeaturesForAuth(summary, features);
-    const authCSV = authFeaturesToCSVRow(flatAuth);
+    windows.forEach(w => {
+      const features = computeSessionFeatures(session, w);
+      const flatAuth = flattenFeaturesForAuth(summary, features);
 
-    // ---- Download auth-ready feature vector
-    downloadCSV(
-      "auth_features.csv",
-      authCSV.header,
-      authCSV.row
-    );
+      flatAuth.windowIndex = w.windowIndex;
+      flatAuth.windowStartMs = w.startMs;
+      flatAuth.windowEndMs = w.endMs;
+
+      const authCSV = authFeaturesToCSVRow(flatAuth);
+
+      downloadCSV(
+        `auth_window_${w.windowIndex}.csv`,
+        authCSV.header,
+        authCSV.row
+      );
+    });
   });
+
 }
 
 function computeTapScore(tap) {

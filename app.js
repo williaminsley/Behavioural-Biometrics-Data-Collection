@@ -8,7 +8,8 @@ import {
   summaryToCSVRow,
   downloadCSV,
   flattenFeaturesForAuth,
-  authFeaturesToCSVRow
+  authFeaturesToCSVRow,
+  generateWindows
 } from "./analysis.js";
 // ==========================
 // Utilities

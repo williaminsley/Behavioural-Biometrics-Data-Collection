@@ -1,5 +1,5 @@
 ## 🔗 Live Demo
-👉 [https://williaminsley.github.io/behaviour-game/](https://williaminsley.github.io/Behavioural-Biometrics-Data-Collection/)
+👉 https://williaminsley.github.io/Behavioural-Biometrics-Data-Collection/
 
 # Behavioural Typing & Tapping Game
 

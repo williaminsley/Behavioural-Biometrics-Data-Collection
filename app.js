@@ -130,6 +130,43 @@ function newSession() {
 }
 
 // ==========================
+// Participant ID Generator
+// ==========================
+function makeParticipantId() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s = "p";
+  for (let i = 0; i < 6; i++) {
+    s += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return s;
+}
+
+// Identity Bootstrap Logic
+async function ensureIdentity() {
+  await signInAnonymously(auth);
+
+  const uid = auth.currentUser.uid;
+  const refUser = doc(db, "participants", uid);
+  const snap = await getDoc(refUser);
+
+  let participantId;
+
+  if (snap.exists()) {
+    participantId = snap.data().participantId;
+  } else {
+    participantId = makeParticipantId();
+    await setDoc(refUser, {
+      participantId,
+      createdAt: serverTimestamp()
+    });
+  }
+
+  localStorage.setItem("participantId", participantId);
+  return { uid, participantId };
+}
+
+
+// ==========================
 // Event logger (core)
 // ==========================
 function logEvent(type, payload = {}) {

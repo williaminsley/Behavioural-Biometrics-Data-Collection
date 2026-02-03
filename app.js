@@ -1,6 +1,12 @@
 // ==========================
 // Imports
 // ==========================
+import {
+  auth, signInAnonymously,
+  db, doc, getDoc, setDoc, serverTimestamp,
+  storage, ref, uploadBytes
+} from "./firebase.js";
+
 import { WORDS, WORD_META } from "./words.js";
 import {
   computeSummary,

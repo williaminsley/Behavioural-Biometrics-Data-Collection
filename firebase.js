@@ -1,35 +1,40 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+
 import {
-  getFirestore, collection, addDoc, serverTimestamp,
-  query, orderBy, limit, getDocs
+  getAuth,
+  signInAnonymously
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+import {
+  getFirestore,
+  doc, getDoc, setDoc,
+  collection, addDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// Paste your real Firebase config later.
-// This guard prevents a blank page before config is set.
+import {
+  getStorage,
+  ref,
+  uploadBytes
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
+
 const firebaseConfig = {
-  apiKey: "YOUR_KEY",
-  authDomain: "YOUR_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_BUCKET",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyARJOjG8qenV7E5EzhNFYeTJdLoZrxM_E4",
+  authDomain: "behavioural-biometrics-b52e4.firebaseapp.com",
+  projectId: "behavioural-biometrics-b52e4",
+  storageBucket: "behavioural-biometrics-b52e4.firebasestorage.app",
+  messagingSenderId: "335083928247",
+  appId: "1:335083928247:web:c872ba3278a7b49f892b32",
+  measurementId: "G-N310K3ZT4M"
 };
 
-function configLooksUnset(cfg) {
-  const vals = Object.values(cfg || {});
-  return vals.some(v => typeof v === "string" && v.includes("YOUR_"));
-}
+const app = initializeApp(firebaseConfig);
 
-let db = null;
-
-if (!configLooksUnset(firebaseConfig)) {
-  const app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
-} else {
-  console.warn("[firebase] Config not set yet — uploads/leaderboard disabled.");
-}
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
 
 export {
-  db, collection, addDoc, serverTimestamp,
-  query, orderBy, limit, getDocs
+  auth, signInAnonymously,
+  db, doc, getDoc, setDoc, collection, addDoc, serverTimestamp,
+  storage, ref, uploadBytes
 };

@@ -1,0 +1,218 @@
+:root {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #0b0c10;
+  color: #e9eef7;
+}
+
+/* ==========================
+   Layout container
+   ========================== */
+.container {
+  max-width: 640px;          /* widened from 520px */
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* Headings */
+h1, h2 {
+  margin: 0 0 10px;
+}
+
+.muted {
+  opacity: 0.8;
+  line-height: 1.35;
+}
+
+/* ==========================
+   Screen handling
+   ========================== */
+.screen {
+  display: none;
+}
+
+.screen.active {
+  display: block;
+}
+
+/* ==========================
+   Inputs & buttons
+   ========================== */
+.input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+button {
+  font-size: 16px;
+  border: 0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  width: 100%;
+  margin-top: 12px;
+  cursor: pointer;
+}
+
+.primary {
+  background: #6ee7ff;
+  color: #081018;
+  font-weight: 700;
+}
+
+.secondary {
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+}
+
+/* ==========================
+   Card / panels
+   ========================== */
+.card {
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+/* ==========================
+   Form helpers
+   ========================== */
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.field {
+  margin-top: 14px;
+}
+
+.seg {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.seg button {
+  margin: 0;
+  width: 100%;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+}
+
+.seg button.active {
+  background: #6ee7ff;
+  color: #081018;
+  font-weight: 700;
+}
+
+/* ==========================
+   Game UI
+   ========================== */
+.timer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.word {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+/* ==========================
+   Tapping game
+   ========================== */
+#tapArena {
+  margin-top: 14px;
+  height: 52vh;
+  position: relative;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.04);
+  border: 1px dashed rgba(255,255,255,0.15);
+  touch-action: none; /* important */
+  overflow: hidden;
+}
+
+#tapTarget {
+  position: absolute;
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  background: #6ee7ff;
+  border: 0;
+  box-shadow: 0 8px 24px rgba(110,231,255,0.25);
+}
+
+/* ==========================
+   Data screen polish
+   ========================== */
+#screen-data .card {
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.data-summary {
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.data-summary table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-summary td {
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.data-summary td:first-child {
+  opacity: 0.75;
+  padding-right: 12px;
+  white-space: nowrap;
+}
+
+/* Buttons spacing on Data screen */
+#btnDownloadCSV {
+  margin-top: 18px;
+}
+
+#btnBackToResultsFromData {
+  margin-top: 8px;
+}
+
+/* ==========================
+   Mobile safety
+   ========================== */
+@media (max-width: 480px) {
+  .container {
+    max-width: 100%;
+  }
+
+  .word {
+    font-size: 24px;
+  }
+}

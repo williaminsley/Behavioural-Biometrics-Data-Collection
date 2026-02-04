@@ -4,6 +4,7 @@
 import {
   auth, signInAnonymously,
   db, doc, getDoc, setDoc, serverTimestamp,
+  collection, addDoc,
   storage, ref, uploadBytes
 } from "./firebase.js";
 
@@ -17,6 +18,7 @@ import {
   generateWindows,
   renderSessionReport
 } from "./analysis.js";
+
 // ==========================
 // Utilities
 // ==========================
@@ -40,7 +42,6 @@ const makeId = () => {
   // Last resort fallback (still fine for your use)
   return (Date.now().toString(16) + Math.random().toString(16).slice(2)).replace(".", "");
 };
-
 
 // ==========================
 // DOM helpers
@@ -83,6 +84,7 @@ let submitLocked = false;
 // tapping state
 let tapStimulusMs = null;
 let rtSum = 0;
+let tappingListenersAttached = false;
 
 // ==========================
 // Session helpers
@@ -162,9 +164,8 @@ async function ensureIdentity() {
   }
 
   localStorage.setItem("participantId", participantId);
-  return { uid, participantId };
+  return { uid: auth.currentUser?.uid ?? null, participantId };
 }
-
 
 // ==========================
 // Event logger (core)
@@ -191,10 +192,6 @@ const UI = {
   // consent
   consentCheckbox: () => el("consentCheckbox"),
   btnConsentNext: () => el("btnConsentNext"),
-
-  // id
-  participantIdInput: () => el("participantIdInput"),
-  btnIdNext: () => el("btnIdNext"),
 
   // context
   fatigue: () => el("fatigue"),
@@ -227,8 +224,12 @@ const UI = {
   resTapAcc: () => el("resTapAcc"),
   resTotal: () => el("resTotal"),
   uploadStatus: () => el("uploadStatus"),
+  pidDisplay: () => el("pidDisplay"),
+  btnCopyPid: () => el("btnCopyPid"),
+  sessionCountDisplay: () => el("sessionCountDisplay"),
   btnViewLeaderboard: () => el("btnViewLeaderboard"),
   btnRestart: () => el("btnRestart"),
+
 
   // leaderboard
   leaderboardList: () => el("leaderboardList"),
@@ -253,7 +254,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   bindConsent();
-  bindParticipantId();
   bindContext();
   bindTypingUI();
   bindResultsUI();
@@ -273,29 +273,20 @@ function bindConsent() {
     btn.disabled = !cb.checked;
   });
 
-  btn.addEventListener("click", () => {
-    setScreen("screen-id");
-  });
-}
+  btn.addEventListener("click", async () => {
+    try {
+      UI.uploadStatus().textContent = ""; // just in case
+      const { participantId } = await ensureIdentity();
 
-// ==========================
-// Participant ID
-// ==========================
-function bindParticipantId() {
-  UI.btnIdNext().addEventListener("click", () => {
-    const pid = UI.participantIdInput().value.trim();
-    if (!pid) return alert("Enter an ID");
+      // Populate the ID input if the screen exists (but keep it read-only)
+      UI.pidDisplay().value = participantId;
 
-    localStorage.setItem("participantId", pid);
-
-    if (!localStorage.getItem("displayName")) {
-      localStorage.setItem(
-        "displayName",
-        ["Blue", "Green", "Red", "Gold", "Swift", "Raven", "Fox", "Wolf"][rand(8)] + "-" + rand(100)
-      );
+      // Skip ID screen (prevents identity fragmentation)
+      setScreen("screen-context");
+    } catch (e) {
+      console.error(e);
+      alert("Auth failed. Please refresh and try again.");
     }
-
-    setScreen("screen-context");
   });
 }
 
@@ -473,8 +464,8 @@ function submitWord(reason) {
     const acc =
       session.rounds.typing.attempts > 0
         ? Math.round(
-            (session.rounds.typing.correct / session.rounds.typing.attempts) * 100
-          )
+          (session.rounds.typing.correct / session.rounds.typing.attempts) * 100
+        )
         : 0;
 
     session.rounds.typing.accuracyPct = acc;
@@ -531,9 +522,13 @@ function startTappingRound() {
   // target starts visible + positioned
   moveTarget();
 
-  // IMPORTANT: miss listener in bubble phase so stopPropagation on hit works
-  UI.tapTarget().addEventListener("pointerdown", onHit);
-  document.addEventListener("pointerdown", onMiss);
+  // Guard against accidental double-binding
+  if (!tappingListenersAttached) {
+    // IMPORTANT: miss listener in bubble phase so stopPropagation on hit works
+    UI.tapTarget().addEventListener("pointerdown", onHit);
+    document.addEventListener("pointerdown", onMiss);
+    tappingListenersAttached = true;
+  }
 
   tappingTickInterval = setInterval(() => {
     const left = Math.max(0, 60000 - (nowMs() - tappingRoundStartMs));
@@ -544,7 +539,6 @@ function startTappingRound() {
 }
 
 function moveTarget() {
-  // If your CSS positions within arena, % is fine
   const x = rand(80);
   const y = rand(80);
   const tgt = UI.tapTarget();
@@ -579,7 +573,6 @@ function onHit(e) {
 }
 
 function onMiss(e) {
-  // ignore taps that are actually on the target
   if (e.target === UI.tapTarget()) return;
 
   session.rounds.tapping.misses += 1;
@@ -605,8 +598,11 @@ function endTappingRound() {
   clearInterval(tappingTickInterval);
   clearTimeout(tappingEndTimeout);
 
-  UI.tapTarget().removeEventListener("pointerdown", onHit);
-  document.removeEventListener("pointerdown", onMiss);
+  if (tappingListenersAttached) {
+    UI.tapTarget().removeEventListener("pointerdown", onHit);
+    document.removeEventListener("pointerdown", onMiss);
+    tappingListenersAttached = false;
+  }
 
   session.rounds.tapping.score = computeTapScore(session.rounds.tapping);
 
@@ -620,7 +616,6 @@ function endTappingRound() {
 // ==========================
 function bindResultsUI() {
   UI.btnRestart().addEventListener("click", () => {
-    // keep participantId, new context answers next run (or you can skip context if you want)
     setScreen("screen-context");
   });
 
@@ -628,13 +623,28 @@ function bindResultsUI() {
   UI.btnViewData().addEventListener("click", () => {
     if (!session) return;
 
-    setScreen("screen-data");                 // 1) switch screen first
-    renderSessionReport(UI.dataSummary(), session); // 2) render into #dataSummary
+    setScreen("screen-data");
+    renderSessionReport(UI.dataSummary(), session);
   });
 
-  // Results -> Leaderboard (even if not implemented yet, the button should navigate)
   UI.btnViewLeaderboard().addEventListener("click", () => {
     setScreen("screen-leaderboard");
+  });
+
+  UI.btnCopyPid().addEventListener("click", async () => {
+    const pid = localStorage.getItem("participantId") || "";
+    if (!pid) return;
+
+    try {
+      await navigator.clipboard.writeText(pid);
+      UI.btnCopyPid().textContent = "Copied ✅";
+      setTimeout(() => (UI.btnCopyPid().textContent = "Copy ID"), 1200);
+    } catch {
+      // fallback if clipboard blocked
+      UI.pidDisplay().focus();
+      UI.pidDisplay().select();
+      alert("Copy not permitted in this browser. Please copy manually.");
+    }
   });
 }
 
@@ -645,56 +655,48 @@ function bindLeaderboardUI() {
 }
 
 function bindDataUI() {
-  // Back (Data -> Results)
   UI.btnBackToResultsFromData().addEventListener("click", () => {
     setScreen("screen-results");
   });
 
-  // Download CSV (1-row session summary)
+  // Download model CSV (windows)
   UI.btnDownloadCSV().addEventListener("click", () => {
     if (!session) return;
 
     const summary = computeSummary(session);
-    const windows = generateWindows(session.events, 30000, 15000); // 30s, 50% overlap
+    const authCsv = buildAuthWindowsCSV(session);
 
-    let header = null;
-    const rows = [];
-
-    windows.forEach(w => {
-      const features = computeSessionFeatures(session, w);
-      const flatAuth = flattenFeaturesForAuth(summary, features);
-      if (!flatAuth) return;
-
-      flatAuth.windowIndex = w.windowIndex;
-      flatAuth.windowStartMs = w.startMs;
-      flatAuth.windowEndMs = w.endMs;
-
-      const authCSV = authFeaturesToCSVRow(flatAuth);
-
-      if (!header) header = authCSV.header;
-      rows.push(authCSV.row);
-    });
-
-    if (!header || rows.length === 0) {
+    if (!authCsv) {
       alert("No window rows to export yet.");
       return;
     }
 
-    // IMPORTANT: downloadCSV() accepts a single 'row' string; we pass many rows joined by '\n'
+    // downloadCSV wants: filename, headerLine, rowString(s)
+    const [header, ...rowLines] = authCsv.trimEnd().split("\n");
     downloadCSV(
       `auth_windows_${summary.sessionId}.csv`,
       header,
-      rows.join("\n")
+      rowLines.join("\n")
     );
-
   });
 
-  // Download Events CSV (1 row per event)
+  // Download events CSV
   UI.btnDownloadEventsCSV().addEventListener("click", () => {
     if (!session) return;
-    downloadEventsCSV(session);
-  });
 
+    const eventsCsv = buildEventsCSV(session);
+    if (!eventsCsv) {
+      alert("No events to export.");
+      return;
+    }
+
+    const [header, ...rowLines] = eventsCsv.trimEnd().split("\n");
+    downloadCSV(
+      `events_${session.sessionId}.csv`,
+      header,
+      rowLines.join("\n")
+    );
+  });
 }
 
 function computeTapScore(tap) {
@@ -718,14 +720,10 @@ function showResults() {
   UI.resTap().textContent = String(tap.score || 0);
   UI.resTotal().textContent = String(total);
 
-  const typingAcc = t.attempts
-    ? Math.round((t.correct / t.attempts) * 100)
-    : 0;
+  const typingAcc = t.attempts ? Math.round((t.correct / t.attempts) * 100) : 0;
 
   const tapTotal = (tap.hits || 0) + (tap.misses || 0);
-  const tapAcc = tapTotal
-    ? Math.round((tap.hits / tapTotal) * 100)
-    : 0;
+  const tapAcc = tapTotal ? Math.round((tap.hits / tapTotal) * 100) : 0;
 
   t.accuracyPct = typingAcc;
   tap.accuracyPct = tapAcc;
@@ -733,59 +731,31 @@ function showResults() {
   UI.resTypingAcc().textContent = String(typingAcc);
   UI.resTapAcc().textContent = String(tapAcc);
 
-  UI.uploadStatus().textContent = "Session saved locally (Firebase upload disabled).";
-
   setScreen("screen-results");
+
+  // Populate ID + session count for participant UX
+  UI.pidDisplay().value = localStorage.getItem("participantId") || "";
+  UI.sessionCountDisplay().textContent = String(
+    Number(localStorage.getItem("sessionCount") || 0)
+  );
+
+  // Auto-upload to Firebase
+  UI.uploadStatus().textContent = "Uploading…";
+  uploadSessionToFirebase(session)
+    .then(() => {
+      UI.uploadStatus().textContent = "Uploaded ✅ Thanks — play again later on the same device.";
+    })
+    .catch((e) => {
+      console.error(e);
+      UI.uploadStatus().textContent = "Upload failed — please download the CSVs below.";
+    });
 
   console.log("SESSION_PAYLOAD", session);
 }
 
 // ==========================
-// Cleanup
+// Cleanup helpers
 // ==========================
-
-function downloadEventsCSV(s) {
-  const events = Array.isArray(s?.events) ? s.events : [];
-  if (!events.length) {
-    alert("No events to export.");
-    return;
-  }
-
-  // Collect union of keys across all events for a stable rectangular CSV
-  const keys = new Set();
-  for (const ev of events) Object.keys(ev || {}).forEach(k => keys.add(k));
-
-  // Ensure core keys first (nice for readability)
-  const core = ["t", "ms", "dt", "tISO"];
-  core.forEach(k => keys.delete(k));
-  keys.delete("sessionId");
-  keys.delete("participantId");
-
-  const header = [
-    "sessionId",
-    "participantId",
-    ...core,
-    ...Array.from(keys).sort()
-  ];
-
-  const rows = events.map(ev => {
-    const rowObj = {
-      sessionId: s.sessionId ?? "",
-      participantId: s.participantId ?? "",
-      ...(ev || {})
-    };
-
-    return header.map(k => csvCell(rowObj[k])).join(",");
-  });
-
-  downloadCSV(
-    `events_${s.sessionId}.csv`,
-    header.join(","),
-    rows.join("\n")
-  );
-}
-
-// CSV cell escape (commas/quotes/newlines)
 function csvCell(v) {
   if (v === null || v === undefined) return "";
   const s = String(v);
@@ -804,5 +774,92 @@ function clearTimers() {
   tappingTickInterval = null;
 }
 
+// ==========================
+// Firebase upload helpers
+// ==========================
+function csvBlob(text) {
+  return new Blob([text], { type: "text/csv;charset=utf-8;" });
+}
+
+function buildAuthWindowsCSV(s) {
+  const summary = computeSummary(s);
+  const windows = generateWindows(s.events, 30000, 15000); // 30s, 50% overlap
+
+  let header = null;
+  const rows = [];
+
+  windows.forEach(w => {
+    const features = computeSessionFeatures(s, w);
+    const flatAuth = flattenFeaturesForAuth(summary, features);
+    if (!flatAuth) return;
+
+    flatAuth.windowIndex = w.windowIndex;
+    flatAuth.windowStartMs = w.startMs;
+    flatAuth.windowEndMs = w.endMs;
+
+    const authCSV = authFeaturesToCSVRow(flatAuth);
+    if (!header) header = authCSV.header;
+    rows.push(authCSV.row);
+  });
+
+  if (!header || rows.length === 0) return null;
+  return header + "\n" + rows.join("\n") + "\n";
+}
+
+function buildEventsCSV(s) {
+  const events = Array.isArray(s?.events) ? s.events : [];
+  if (!events.length) return null;
+
+  const keys = new Set();
+  for (const ev of events) Object.keys(ev || {}).forEach(k => keys.add(k));
+
+  const core = ["t", "ms", "dt", "tISO"];
+  core.forEach(k => keys.delete(k));
+  keys.delete("sessionId");
+  keys.delete("participantId");
+
+  const header = ["sessionId", "participantId", ...core, ...Array.from(keys).sort()];
+
+  const rows = events.map(ev => {
+    const rowObj = {
+      sessionId: (s.sessionId ?? ""),
+      participantId: (s.participantId ?? ""),
+      ...(ev || {})
+    };
+    return header.map(k => csvCell(rowObj[k])).join(",");
+  });
+
+  return header.join(",") + "\n" + rows.join("\n") + "\n";
+}
+
+async function uploadSessionToFirebase(s) {
+  if (!auth.currentUser) throw new Error("Not signed in");
+
+  const authCsv = buildAuthWindowsCSV(s);
+  const eventsCsv = buildEventsCSV(s);
+
+  if (!authCsv) throw new Error("No auth_windows rows to upload yet.");
+
+  const base = `sessions/${s.sessionId}`;
+
+  await uploadBytes(ref(storage, `${base}/auth_windows.csv`), csvBlob(authCsv));
+  if (eventsCsv) {
+    await uploadBytes(ref(storage, `${base}/events.csv`), csvBlob(eventsCsv));
+  }
+
+  await addDoc(collection(db, "sessions"), {
+    sessionId: s.sessionId,
+    uid: auth.currentUser.uid,
+    participantId: s.participantId ?? null,
+    sessionIndex: s.sessionIndex ?? null,
+    createdAt: serverTimestamp(),
+    context: s.context ?? {},
+    device: s.device ?? {},
+    eventCount: (s.events || []).length,
+    hasEventsCsv: Boolean(eventsCsv)
+  });
+}
+
+// Debug hooks
 window._UI = UI;
 window._session = () => session;

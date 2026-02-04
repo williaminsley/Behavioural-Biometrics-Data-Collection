@@ -17,9 +17,18 @@
     <section id="screen-consent" class="screen active">
       <h1>60s Typing + 60s Tapping</h1>
       <p class="muted">
-        No personal info. No raw typed text stored. You can stop anytime.
+        This study collects anonymous interaction timing data from typing and tapping tasks for academic research into behavioural biometrics (continuous authentication).
+        <br><br>
+        <strong>What we collect:</strong> timestamps and timing features from key presses and taps, plus the context options you select (time of day, fatigue, input device, vibration, alcohol).
+        <br>
+        <strong>What we do NOT collect:</strong> no names, emails, IP addresses, or any personal identifiers. No raw typed text is stored.
+        <br><br>
+        Participation is voluntary. You can stop at any time by closing the page.
+        If you wish to withdraw your data, contact: <strong>ppywi1@nottingham.ac.uk</strong>.
+        <br><br>
         Do not play while driving.
       </p>
+
 
       <div class="check">
         <input id="consentCheckbox" type="checkbox" />
@@ -29,25 +38,6 @@
       </div>
 
       <button id="btnConsentNext" class="primary" disabled>
-        Continue
-      </button>
-    </section>
-
-    <!-- ================= PARTICIPANT ID ================= -->
-    <section id="screen-id" class="screen">
-      <h2>Participant ID</h2>
-      <p class="muted">
-        Use a pseudonym (e.g. <code>p1234</code>). Saved on this device.
-      </p>
-
-      <input
-        id="participantIdInput"
-        class="input"
-        placeholder="Enter pseudonymous ID"
-        autocomplete="off"
-      />
-
-      <button id="btnIdNext" class="primary">
         Continue
       </button>
     </section>
@@ -149,6 +139,22 @@
     <!-- ================= RESULTS ================= -->
     <section id="screen-results" class="screen">
       <h2>Results</h2>
+      <div class="card">
+        <p class="muted" style="margin:0 0 8px;">
+          Your participant ID (stays the same on this device):
+        </p>
+
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input id="pidDisplay" class="input" readonly />
+          <button id="btnCopyPid" class="secondary" style="width:auto; white-space:nowrap; margin-top:0;">
+            Copy ID
+          </button>
+        </div>
+
+        <p class="muted" style="margin:10px 0 0;">
+          Sessions completed on this device: <strong><span id="sessionCountDisplay">0</span></strong>
+        </p>
+      </div>
 
       <p>
         Typing score:

@@ -1,4 +1,30 @@
+# mac
 .DS_Store
+
+# node (just in case)
 node_modules/
+
+# python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# virtual envs
+.venv/
+venv/
+
+# editor
+.vscode/
+
+# secrets
 .env
-export/serviceAccountKey.json
+serviceAccount*.json
+*.pem
+*.key
+
+# data exports (keep code, ignore raw exports)
+Behavioural-Biometrics-Analysis/data/**/*.csv
+Behavioural-Biometrics-Analysis/data/**/*.parquet
+Behavioural-Biometrics-Analysis/data/**/*.json
+Behavioural-Biometrics-Analysis/data/raw/
+Behavioural-Biometrics-Analysis/data/exports/

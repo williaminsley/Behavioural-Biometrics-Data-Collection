@@ -28,3 +28,11 @@ Behavioural-Biometrics-Analysis/data/**/*.parquet
 Behavioural-Biometrics-Analysis/data/**/*.json
 Behavioural-Biometrics-Analysis/data/raw/
 Behavioural-Biometrics-Analysis/data/exports/
+
+# secret json key
+*.json
+.secrets/
+**/.secrets/
+
+# Raw collected data (DO NOT COMMIT)
+data/raw/

@@ -12,9 +12,21 @@ import pandas as pd
 
 
 DEFAULT_CORE_FEATURES = [
+    "schemaVersion",
     "participantId",
+    "user_id",
     "sessionId",
+    "session_order",
+    "session_date",
+    "device_family",
     "windowIndex",
+    "window_duration_ms",
+    "n_key_events",
+    "n_tap_hits",
+    "n_tap_misses",
+    "is_low_activity_window",
+    "has_typing",
+    "has_tapping",
     "typing_ikt_global_mean",
     "typing_ikt_global_std",
     "tap_rt_mean",
@@ -30,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--reports-dir", type=str, default="reports")
     p.add_argument("--core-features", type=str, default=",".join(DEFAULT_CORE_FEATURES))
     p.add_argument("--strict", action="store_true")
+    p.add_argument("--required-schema-version", type=int, default=2)
     return p.parse_args()
 
 
@@ -96,11 +109,14 @@ def gate(ver: dict, strict: bool) -> Tuple[str, List[str], List[str]]:
 
     sessions = ver["sessions_count"]
     total_windows = ver["total_windows"]
+    schema_bad_rows = ver.get("schema_bad_rows", 0)
     typing_p = ver["typing_presence"]
     tapping_p = ver["tapping_presence"]
 
     if sessions < 1:
         fails.append("No sessions found.")
+    if schema_bad_rows > 0:
+        fails.append(f"Rows with non-v2 schemaVersion: {schema_bad_rows}")
     if total_windows < 20:
         warns.append(f"Low total windows (<20): {total_windows}")
 
@@ -183,6 +199,7 @@ def main() -> int:
             "participants_count": 0,
             "sessions_count": 0,
             "total_windows": 0,
+            "schema_bad_rows": 0,
             "windows_per_session": {},
             "typing_presence": 0.0,
             "tapping_presence": 0.0,
@@ -203,6 +220,10 @@ def main() -> int:
         tapping_presence, tapping_src = inferred_presence_frac(
             df, "has_tapping", ["tap_rt_mean"]
         )
+        schema_bad_rows = 0
+        if "schemaVersion" in df.columns:
+            v = pd.to_numeric(df["schemaVersion"], errors="coerce")
+            schema_bad_rows = int((v.isna() | (v != args.required_schema_version)).sum())
 
         summary = {
             "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -211,6 +232,7 @@ def main() -> int:
             "participants_count": participants,
             "sessions_count": len(auth_files),
             "total_windows": int(len(df)),
+            "schema_bad_rows": schema_bad_rows,
             "windows_per_session": wps,
             "typing_presence": typing_presence,
             "tapping_presence": tapping_presence,

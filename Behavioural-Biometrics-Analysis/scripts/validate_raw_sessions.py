@@ -12,16 +12,28 @@ import pandas as pd
 
 
 AUTH_REQUIRED = {
+    "schemaVersion",
     "sessionId",
     "participantId",
+    "user_id",
+    "session_order",
+    "session_date",
+    "device_family",
     "windowIndex",
     "windowStartMs",
     "windowEndMs",
+    "window_duration_ms",
+    "n_key_events",
+    "n_tap_hits",
+    "n_tap_misses",
+    "is_low_activity_window",
+    "has_typing",
+    "has_tapping",
     "typing_ikt_global_mean",
     "tap_rt_mean",
 }
 
-EVENTS_REQUIRED = {"sessionId", "participantId", "t", "ms", "tISO"}
+EVENTS_REQUIRED = {"schemaVersion", "sessionId", "participantId", "t", "ms", "tISO"}
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,6 +48,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--min-events-per-session", type=int, default=200)
     p.add_argument("--min-typing-submits", type=int, default=10)
     p.add_argument("--min-tap-hits", type=int, default=20)
+    p.add_argument("--required-schema-version", type=int, default=2)
     return p.parse_args()
 
 
@@ -45,6 +58,7 @@ def check_session(
     min_events: int,
     min_typing_submits: int,
     min_tap_hits: int,
+    required_schema_version: int,
 ) -> Tuple[Dict[str, int], List[str], str]:
     sid = session_dir.name
     issues: List[str] = []
@@ -73,6 +87,16 @@ def check_session(
         issues.append("auth sessionId differs from folder name")
     if "sessionId" in events.columns and (events["sessionId"].astype(str) != sid).any():
         issues.append("events sessionId differs from folder name")
+    if "schemaVersion" in auth.columns:
+        versions = pd.to_numeric(auth["schemaVersion"], errors="coerce")
+        bad = versions.isna() | (versions != required_schema_version)
+        if bad.any():
+            issues.append(f"auth schemaVersion must be {required_schema_version}")
+    if "schemaVersion" in events.columns:
+        versions = pd.to_numeric(events["schemaVersion"], errors="coerce")
+        bad = versions.isna() | (versions != required_schema_version)
+        if bad.any():
+            issues.append(f"events schemaVersion must be {required_schema_version}")
 
     pid = ""
     if "participantId" in auth.columns:
@@ -94,6 +118,23 @@ def check_session(
         )
         if not (dur == 30000).all():
             issues.append("window durations are not all 30000 ms")
+    if "window_duration_ms" in auth.columns:
+        wd = pd.to_numeric(auth["window_duration_ms"], errors="coerce")
+        if wd.isna().any() or not (wd == 30000).all():
+            issues.append("window_duration_ms must be 30000 for all windows")
+
+    for c in ["n_key_events", "n_tap_hits", "n_tap_misses"]:
+        if c in auth.columns:
+            x = pd.to_numeric(auth[c], errors="coerce")
+            if x.isna().any() or (x < 0).any():
+                issues.append(f"{c} must be non-negative numeric")
+
+    for c in ["has_typing", "has_tapping", "is_low_activity_window"]:
+        if c in auth.columns:
+            vals = auth[c].astype(str).str.strip().str.lower()
+            ok = vals.isin({"1", "0", "true", "false", "t", "f", "yes", "no", "y", "n"})
+            if not ok.all():
+                issues.append(f"{c} has non-boolean values")
 
     if {"windowIndex", "windowStartMs"}.issubset(auth.columns):
         sorted_auth = auth.sort_values("windowIndex")
@@ -184,6 +225,7 @@ def main() -> int:
             min_events=args.min_events_per_session,
             min_typing_submits=args.min_typing_submits,
             min_tap_hits=args.min_tap_hits,
+            required_schema_version=args.required_schema_version,
         )
         if pid:
             participants.add(pid)
@@ -216,6 +258,7 @@ def main() -> int:
         "sessions_scanned": sessions_count,
         "participants_found": participants_count,
         "thresholds": {
+            "required_schema_version": args.required_schema_version,
             "min_sessions": args.min_sessions,
             "min_participants": args.min_participants,
             "min_windows_per_session": args.min_windows_per_session,

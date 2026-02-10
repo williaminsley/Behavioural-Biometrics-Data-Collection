@@ -10,6 +10,16 @@ import pandas as pd
 
 
 DEFAULT_FEATURES = [
+    "schemaVersion",
+    "user_id",
+    "session_order",
+    "session_date",
+    "device_family",
+    "window_duration_ms",
+    "n_key_events",
+    "n_tap_hits",
+    "n_tap_misses",
+    "is_low_activity_window",
     "typing_ikt_global_mean",
     "typing_ikt_global_std",
     "typing_ikt_within_mean",
@@ -26,6 +36,20 @@ DEFAULT_FEATURES = [
 
 PRESENCE = ["has_typing", "has_tapping"]
 IDS = ["participantId", "sessionId", "windowIndex"]
+REQUIRED_SCHEMA_COLUMNS = [
+    "schemaVersion",
+    "user_id",
+    "session_order",
+    "session_date",
+    "device_family",
+    "window_duration_ms",
+    "n_key_events",
+    "n_tap_hits",
+    "n_tap_misses",
+    "is_low_activity_window",
+    "has_typing",
+    "has_tapping",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,6 +59,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--out-parquet", type=str, default="windows.parquet")
     p.add_argument("--write-csv", action="store_true")
     p.add_argument("--features", type=str, default=",".join(DEFAULT_FEATURES))
+    p.add_argument("--required-schema-version", type=int, default=2)
     return p.parse_args()
 
 
@@ -87,13 +112,20 @@ def coerce_presence(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def build_session(session_dir: Path, keep_features: List[str]) -> Optional[pd.DataFrame]:
+def build_session(session_dir: Path, keep_features: List[str], required_schema_version: int) -> Optional[pd.DataFrame]:
     auth = session_dir / "auth_windows.csv"
     if not auth.exists():
         return None
 
     df = pd.read_csv(auth)
     sid = session_dir.name
+
+    missing_required = [c for c in REQUIRED_SCHEMA_COLUMNS if c not in df.columns]
+    if missing_required:
+        raise ValueError(f"{sid}: missing required schema columns: {missing_required}")
+    schema_v = pd.to_numeric(df["schemaVersion"], errors="coerce")
+    if schema_v.isna().any() or not (schema_v == required_schema_version).all():
+        raise ValueError(f"{sid}: schemaVersion must be {required_schema_version}")
 
     if "sessionId" not in df.columns:
         df["sessionId"] = sid
@@ -117,6 +149,11 @@ def build_session(session_dir: Path, keep_features: List[str]) -> Optional[pd.Da
 
     out = df[keep].copy()
     out["windowIndex"] = pd.to_numeric(out["windowIndex"], errors="coerce").astype("Int64")
+    out["schemaVersion"] = pd.to_numeric(out["schemaVersion"], errors="coerce").astype("Int64")
+    out["session_order"] = pd.to_numeric(out["session_order"], errors="coerce").astype("Int64")
+    for c in ["n_key_events", "n_tap_hits", "n_tap_misses", "window_duration_ms"]:
+        if c in out.columns:
+            out[c] = pd.to_numeric(out[c], errors="coerce").astype("Int64")
     return out
 
 
@@ -132,7 +169,7 @@ def main() -> int:
     frames = []
 
     for sdir in session_dirs:
-        df = build_session(sdir, keep_features)
+        df = build_session(sdir, keep_features, args.required_schema_version)
         if df is not None and len(df) > 0:
             frames.append(df)
 

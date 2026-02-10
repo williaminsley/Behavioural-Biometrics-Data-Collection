@@ -31,17 +31,30 @@ function csvEscape(v) {
 
 // Continuous-auth feature flattener
 
-export function flattenFeaturesForAuth(summary, features) {
+export function flattenFeaturesForAuth(summary, features, meta = {}) {
   if (!summary || !features) return null;
 
   const row = {
+    schemaVersion: summary.schemaVersion ?? 2,
+
     // ---- identifiers (keep for linking, drop before training if needed)
     sessionId: summary.sessionId,
     participantId: summary.participantId,
+    user_id: summary.participantId,
     sessionIndex: summary.sessionIndex,
+    session_order: meta.session_order ?? summary.sessionIndex ?? null,
+    session_date: meta.session_date ?? null,
     timeBucket: summary.timeBucket,
     fatigue: summary.fatigue,
     inputDevice: summary.inputDevice,
+    device_family: meta.device_family ?? null,
+    has_typing: meta.has_typing ?? null,
+    has_tapping: meta.has_tapping ?? null,
+    n_key_events: meta.n_key_events ?? null,
+    n_tap_hits: meta.n_tap_hits ?? null,
+    n_tap_misses: meta.n_tap_misses ?? null,
+    window_duration_ms: meta.window_duration_ms ?? null,
+    is_low_activity_window: meta.is_low_activity_window ?? null,
 
     // ---- typing: global IKT
     typing_ikt_global_mean: features.typing.iktGlobal.mean ?? null,

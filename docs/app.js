@@ -94,7 +94,7 @@ function newSession() {
   localStorage.setItem("sessionCount", String(count));
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     sessionId: makeId(),
     sessionIndex: count,
     participantId: localStorage.getItem("participantId"),
@@ -128,6 +128,29 @@ function newSession() {
       }
     },
     events: []
+  };
+}
+
+function inferDeviceFamily(sessionObj) {
+  const ua = String(sessionObj?.device?.userAgent || "").toLowerCase();
+  if (ua.includes("ipad") || ua.includes("tablet")) return "tablet";
+  if (ua.includes("mobile") || ua.includes("android") || ua.includes("iphone")) return "mobile";
+  return "desktop";
+}
+
+function inWindowMs(ms, w) {
+  return Number.isFinite(ms) && ms >= w.startMs && ms <= w.endMs;
+}
+
+function windowEventCounts(events, w) {
+  const inW = events.filter(e => inWindowMs(Number(e?.ms), w));
+  const nKey = inW.filter(e => e?.t === "key").length;
+  const nTapHits = inW.filter(e => e?.t === "tap_hit").length;
+  const nTapMisses = inW.filter(e => e?.t === "tap_miss").length;
+  return {
+    n_key_events: nKey,
+    n_tap_hits: nTapHits,
+    n_tap_misses: nTapMisses
   };
 }
 
@@ -798,13 +821,28 @@ function csvBlob(text) {
 function buildAuthWindowsCSV(s) {
   const summary = computeSummary(s);
   const windows = generateWindows(s.events, 30000, 15000); // 30s, 50% overlap
+  const sessionDate = String(summary?.createdAtClientISO || "").split("T")[0] || null;
+  const deviceFamily = inferDeviceFamily(s);
 
   let header = null;
   const rows = [];
 
   windows.forEach(w => {
     const features = computeSessionFeatures(s, w);
-    const flatAuth = flattenFeaturesForAuth(summary, features);
+    const counts = windowEventCounts(s.events || [], w);
+    const tapTotal = counts.n_tap_hits + counts.n_tap_misses;
+    const flatAuth = flattenFeaturesForAuth(summary, features, {
+      session_order: summary?.sessionIndex ?? null,
+      session_date: sessionDate,
+      device_family: deviceFamily,
+      has_typing: counts.n_key_events > 0,
+      has_tapping: tapTotal > 0,
+      n_key_events: counts.n_key_events,
+      n_tap_hits: counts.n_tap_hits,
+      n_tap_misses: counts.n_tap_misses,
+      window_duration_ms: w.endMs - w.startMs,
+      is_low_activity_window: counts.n_key_events < 10 || tapTotal < 10
+    });
     if (!flatAuth) return;
 
     flatAuth.windowIndex = w.windowIndex;
@@ -832,10 +870,11 @@ function buildEventsCSV(s) {
   keys.delete("sessionId");
   keys.delete("participantId");
 
-  const header = ["sessionId", "participantId", ...core, ...Array.from(keys).sort()];
+  const header = ["schemaVersion", "sessionId", "participantId", ...core, ...Array.from(keys).sort()];
 
   const rows = events.map(ev => {
     const rowObj = {
+      schemaVersion: (s.schemaVersion ?? null),
       sessionId: (s.sessionId ?? ""),
       participantId: (s.participantId ?? ""),
       ...(ev || {})

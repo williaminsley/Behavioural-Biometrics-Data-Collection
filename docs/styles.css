@@ -182,17 +182,32 @@ button {
 .data-summary table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .data-summary td {
   padding: 6px 0;
   border-bottom: 1px solid rgba(255,255,255,0.08);
+  vertical-align: top;
 }
 
 .data-summary td:first-child {
   opacity: 0.75;
   padding-right: 12px;
   white-space: nowrap;
+}
+
+.data-summary td:last-child {
+  overflow-wrap: anywhere;
+}
+
+.data-section-title {
+  margin: 14px 0 8px;
+  font-size: 1rem;
+}
+
+.data-section-title:first-child {
+  margin-top: 0;
 }
 
 /* Buttons spacing on Data screen */

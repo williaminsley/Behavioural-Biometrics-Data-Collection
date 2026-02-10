@@ -4,7 +4,9 @@ from google.cloud import storage
 # ---------------- CONFIG ----------------
 BUCKET_NAME = "behavioural-biometrics-b52e4.firebasestorage.app"
 REMOTE_PREFIX = "sessions/"
-LOCAL_ROOT = Path("../data/raw/sessions")  # relative to scripts/
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+LOCAL_ROOT = PROJECT_ROOT / "data" / "raw" / "sessions"
 REQUIRED_FILES = ["auth_windows.csv", "events.csv"]
 # ----------------------------------------
 

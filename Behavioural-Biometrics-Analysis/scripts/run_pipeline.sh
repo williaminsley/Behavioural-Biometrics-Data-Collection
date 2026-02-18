@@ -19,8 +19,12 @@ fi
 mkdir -p reports data/processed
 echo "Using Python: $PYTHON_BIN"
 
-echo "1) Syncing Firebase Storage sessions"
-"$PYTHON_BIN" scripts/sync_storage_sessions.py
+echo "1) Syncing Firebase Storage sessions (optional)"
+if "$PYTHON_BIN" scripts/sync_storage_sessions.py; then
+  echo "Sync complete."
+else
+  echo "WARNING: Storage sync failed; continuing with local data."
+fi
 
 echo "2) Running prelaunch session validation"
 "$PYTHON_BIN" scripts/validate_raw_sessions.py --raw-sessions-dir data/raw/sessions --reports-dir reports

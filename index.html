@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+  (function () {
+    const ua = navigator.userAgent || navigator.vendor || window.opera || "";
+
+    const isInstagram = /Instagram/i.test(ua);
+    const isFacebookInApp = /FBAN|FBAV/i.test(ua);
+    const isSnapchat = /Snapchat/i.test(ua);
+    const isTikTok = /TikTok/i.test(ua);
+    const isLinkedin = /LinkedIn|Linkedin/i.test(ua);
+
+    const isInAppBrowser =
+      isInstagram || isFacebookInApp || isSnapchat || isLinkedin || isTikTok;
+
+    if (isInAppBrowser) {
+      window.location.href = "open.html";
+    }
+  })();
+</script>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+  />
+  <title>Behaviour Game</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <main class="container">
+
+    <!-- ================= INSTRUCTIONS ================= -->
+    <section id="screen-instructions" class="screen active">
+      <h1>Behavioural Biometrics Study</h1>
+
+      <p class="muted">
+        This study is designed to collect anonymous behavioural interaction data for academic research into
+        <strong>continuous authentication</strong>.
+      </p>
+
+      <div class="card">
+        <h2 style="margin-top:0;">What you will do</h2>
+        <p class="muted" style="margin-bottom:10px;">
+          You will complete two short tasks:
+        </p>
+        <p style="margin:0 0 8px;"><strong>1. Typing task:</strong> type prompted words for 60 seconds.</p>
+        <p style="margin:0;"><strong>2. Tapping task:</strong> tap moving targets for 60 seconds.</p>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">What to expect</h2>
+        <p style="margin:0 0 8px;">
+          The full session takes <strong>2 minutes</strong>.
+        </p>
+        <p style="margin:0 0 8px;">
+          Before the tasks, you will be asked a few quick context questions such as time of day, fatigue,
+          and input device.
+        </p>
+        <p style="margin:0;">
+          At the end, you will see your results and your anonymous <strong>Participant ID</strong>.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Important instructions</h2>
+        <p style="margin:0 0 8px;">
+          Please complete the tasks naturally, using your normal typing and tapping behaviour.
+        </p>
+        <p style="margin:0 0 8px;">
+          For the typing task, type the word shown and press the <strong>Enter/Return</strong> key after each word.
+        </p>
+        <p style="margin:0;">
+          Please do not take part while driving or in any unsafe situation.
+        </p>
+      </div>
+
+      <button
+        class="primary"
+        type="button"
+        onclick="document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById('screen-consent').classList.add('active');"
+      >
+        Continue to Consent
+      </button>
+    </section>
+
+    <!-- ================= CONSENT ================= -->
+    <section id="screen-consent" class="screen">
+      <h1>Consent</h1>
+
+      <p class="muted">
+        This study collects anonymous behavioural and contextual data from short typing and tapping tasks for academic
+        research into behavioural biometrics and continuous authentication.
+      </p>
+
+      <div class="card">
+        <h2 style="margin-top:0;">What will be collected</h2>
+        <p style="margin:0 0 10px;">
+          We collect data generated while you use this study, including:
+        </p>
+        <p style="margin:0 0 8px;">
+          <strong>Typing data:</strong> key press and key release timings, dwell time, inter-key timings, typing errors,
+          backspaces, prompted word timing, bigram timing features, and the text you type in response to the prompts.
+        </p>
+        <p style="margin:0 0 8px;">
+          <strong>Tapping and pointer/touch data:</strong> tap timing, hit/miss outcomes, target interaction timing,
+          pointer movement, pointer down/up events, movement path features, and touch-contact information where available
+          on your device/browser (for example touch radius, force, width, height, area, or rotation angle).
+        </p>
+        <p style="margin:0 0 8px;">
+          <strong>Context data:</strong> your selected time of day, fatigue rating, input device, vibration/movement setting,
+          and alcohol response.
+        </p>
+        <p style="margin:0;">
+          <strong>Device/browser data:</strong> browser user agent, platform, screen size, pixel ratio, timezone offset,
+          anonymous participant ID, session ID, and session timing metadata.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Important note about typed text</h2>
+        <p style="margin:0 0 10px;">
+          <strong>The words you type during the typing task may be stored as part of the research dataset.</strong>
+        </p>
+        <p style="margin:0;">
+          Please do not type personal information, passwords, email addresses, phone numbers, or any other sensitive information.
+          Only type the prompted study words.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">What is not intended to be collected</h2>
+        <p style="margin:0 0 10px;">
+          We do not ask for your name or email address as part of the study task.
+        </p>
+        <p style="margin:0;">
+          We do not intend to collect direct personal identifiers through the study interface. However, because raw typed
+          responses may be stored, you should avoid entering any personal or sensitive information.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">How your data is used</h2>
+        <p style="margin:0 0 10px;">
+          Your data will be used for academic research on behavioural biometrics, continuous authentication, and related
+          machine learning analysis.
+        </p>
+        <p style="margin:0;">
+          Uploaded session files may be processed into derived research datasets and statistical features for analysis,
+          modelling, and dissertation reporting.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Voluntary participation and withdrawal</h2>
+        <p style="margin:0 0 10px;">
+          Participation is voluntary. You can stop at any time by closing the page before finishing.
+        </p>
+        <p style="margin:0 0 10px;">
+          If you wish to withdraw your uploaded data, contact:
+          <strong>ppywi1@nottingham.ac.uk</strong>
+          and include the anonymous <strong>Participant ID</strong> shown on the Results screen.
+        </p>
+        <p style="margin:0;">
+          <strong>18+ only.</strong>
+        </p>
+      </div>
+
+      <p class="muted">
+        Do not take part while driving or in any unsafe situation.
+      </p>
+
+      <div class="check">
+        <input id="consentCheckbox" type="checkbox" />
+        <label for="consentCheckbox">
+          I am 18 or over, I understand what data may be collected including raw typed text, and I agree to take part.
+        </label>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <p style="margin:0 0 10px;">
+          <strong>Browser requirement:</strong> please complete this study in a normal Safari or Chrome tab.
+        </p>
+        <p style="margin:0;" class="muted">
+          Do not use private/incognito mode. Private browsing can interfere with persistent browser storage,
+          which is needed to keep the same anonymous Participant ID on this device across sessions.
+        </p>
+      </div>
+
+      <div class="check" style="margin-top:10px;">
+        <input id="privateBrowserCheckbox" type="checkbox" />
+        <label for="privateBrowserCheckbox">
+          I confirm that I am not using a private/incognito browser window.
+        </label>
+      </div>
+
+      <button id="btnConsentNext" class="primary" disabled>
+        Continue
+      </button>
+    </section>
+
+    <!-- ================= CONTEXT ================= -->
+    <section id="screen-context" class="screen">
+      <h2>Context Before You Start</h2>
+
+      <p class="muted">
+        These questions help us understand whether behaviour changes across different situations.
+        Please answer based on how you feel <strong>right now</strong>.
+      </p>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Time of day</h3>
+        <p class="muted" style="margin-top:0;">
+          Select the option that best matches your current time period.
+        </p>
+        <div class="seg">
+          <button data-time="morning" type="button">Morning</button>
+          <button data-time="afternoon" type="button">Afternoon</button>
+          <button data-time="evening" type="button">Evening</button>
+          <button data-time="night" type="button">Night</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Fatigue</h3>
+        <p class="muted" style="margin-top:0;">
+          Rate how tired you feel right now, from <strong>1 = very alert</strong> to <strong>5 = very tired</strong>.
+        </p>
+        <p class="muted">
+          Current value: <span id="fatigueVal">3</span>
+        </p>
+        <input id="fatigue" type="range" min="1" max="5" value="3" />
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Input and environment</h3>
+
+        <label class="muted" for="inputDevice">Input device</label>
+        <p class="muted" style="margin-top:4px;">
+          Choose the main device you are using to interact with the screen.
+        </p>
+        <select id="inputDevice" class="input">
+          <option value="touch">Touch</option>
+          <option value="mouse">Mouse</option>
+          <option value="trackpad">Trackpad</option>
+        </select>
+
+        <label class="muted" for="vibration" style="display:block; margin-top:14px;">Vibration / movement</label>
+        <p class="muted" style="margin-top:4px;">
+          For example: sitting still, walking, on a train, or in a moving vehicle.
+        </p>
+        <select id="vibration" class="input">
+          <option value="none">None</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+        </select>
+
+        <label class="muted" for="alcohol" style="display:block; margin-top:14px;">Alcohol</label>
+        <p class="muted" style="margin-top:4px;">
+          This is optional and used only as anonymous context for the research dataset.
+        </p>
+        <select id="alcohol" class="input">
+          <option value="no">No</option>
+          <option value="yes">Yes</option>
+          <option value="prefer-not">Prefer not to say</option>
+        </select>
+      </div>
+
+      <button id="btnContextNext" class="primary">
+        Start Tasks
+      </button>
+    </section>
+
+    <!-- ================= TYPING GAME ================= -->
+    <section id="screen-typing" class="screen">
+      <h2>Typing</h2>
+
+      <p class="timer">
+        Time left: <span id="typingTime">60.0</span>s
+      </p>
+
+      <div id="wordPrompt" class="word"></div>
+
+      <input
+        id="wordInput"
+        class="input"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+        autocapitalize="none"
+        inputmode="text"
+        enterkeyhint="done"
+      />
+
+      <p class="muted">Press the enter key on keyboard after typing the word.</p>
+
+      <p class="muted">
+        Score: <span id="typingScore">0</span> |
+        Attempts: <span id="typingAttempts">0</span> |
+        Accuracy: <span id="typingAccuracy">0%</span>
+      </p>
+    </section>
+
+    <!-- ================= TAPPING GAME ================= -->
+    <section id="screen-tapping" class="screen">
+      <h2>Tapping</h2>
+
+      <p class="timer">
+        Time left: <span id="tapTime">60.0</span>s
+      </p>
+
+      <div id="tapArena">
+        <div id="tapTarget"></div>
+      </div>
+
+      <p class="muted">
+        Hits: <span id="tapHits">0</span> |
+        Misses: <span id="tapMisses">0</span> |
+        Accuracy: <span id="tapAccuracy">0%</span>
+      </p>
+    </section>
+
+    <!-- ================= FINISHED ================= -->
+    <section id="screen-complete" class="screen">
+      <div class="card">
+        <h2>Session complete</h2>
+        <p>Thank you. Tap continue to finish.</p>
+        <button id="btnSessionCompleteContinue" class="primary">Continue</button>
+      </div>
+    </section>
+
+    <!-- ================= RESULTS ================= -->
+    <section id="screen-results" class="screen">
+      <h2>Results</h2>
+      <div class="card">
+        <p class="muted" style="margin:0 0 8px;">
+          Your participant ID (stays the same on this device):
+        </p>
+
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input id="pidDisplay" class="input" readonly />
+          <button id="btnCopyPid" class="secondary" style="width:auto; white-space:nowrap; margin-top:0;">
+            Copy ID
+          </button>
+        </div>
+
+        <p class="muted" style="margin:10px 0 0;">
+          Sessions completed on this device: <strong><span id="sessionCountDisplay">0</span></strong>
+        </p>
+      </div>
+
+      <p>
+        Typing score:
+        <strong><span id="resTyping">0</span></strong>
+        (<span id="resTypingAcc">0</span>% accuracy)
+      </p>
+
+      <p>
+        Tapping score:
+        <strong><span id="resTap">0</span></strong>
+        (<span id="resTapAcc">0</span>% accuracy)
+      </p>
+
+      <p>
+        Total score:
+        <strong><span id="resTotal">0</span></strong>
+      </p>
+
+      <p id="uploadStatus" class="muted"></p>
+
+      <button id="btnGoToDataOnFail" class="primary" style="display:none; margin-top:10px;">
+        Download CSVs (Upload failed)
+      </button>
+
+      <div class="actions">
+        <button id="btnViewData" class="secondary">
+          View Data
+        </button>
+
+        <button id="btnRestart" class="primary">
+          Play Again
+        </button>
+      </div>
+    </section>
+
+    <!-- ================= DATA =================== -->
+    <section id="screen-data" class="screen">
+      <h2>Data</h2>
+      <p class="muted">
+        Session summary (human-readable) and CSV export.
+      </p>
+
+      <div class="card data-summary">
+        <div id="dataSummary" class="data-summary"></div>
+      </div>
+
+      <button
+        id="btnDownloadCSV"
+        class="primary"
+        style="margin-top:16px;"
+      >
+        Download Auth Windows CSV
+      </button>
+
+      <button
+        id="btnDownloadEventsCSV"
+        class="secondary"
+        style="margin-top:10px;"
+      >
+        Download Events CSV
+      </button>
+
+      <button id="btnBackToResultsFromData" class="secondary" style="margin-top:10px;">
+        Back
+      </button>
+    </section>
+
+  </main>
+
+  <!-- JS -->
+  <script type="module" src="app.js?v=4"></script>
+</body>
+</html>

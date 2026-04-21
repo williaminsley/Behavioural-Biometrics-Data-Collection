@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1"
+  />
+  <title>Open in Safari or Chrome</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: #f7f8fb;
+      color: #111827;
+      margin: 0;
+      padding: 0;
+    }
+
+    .wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 18px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.05);
+    }
+
+    h1 {
+      font-size: 28px;
+      line-height: 1.2;
+      margin: 0 0 14px;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin: 0 0 10px;
+    }
+
+    p {
+      line-height: 1.55;
+      margin: 0 0 12px;
+    }
+
+    .muted {
+      color: #6b7280;
+    }
+
+    .steps {
+      margin: 12px 0 0;
+      padding-left: 20px;
+      line-height: 1.7;
+    }
+
+    .primary,
+    .secondary {
+      display: inline-block;
+      width: 100%;
+      box-sizing: border-box;
+      text-align: center;
+      border: 0;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      margin-top: 10px;
+    }
+
+    .primary {
+      background: #111827;
+      color: #ffffff;
+    }
+
+    .secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .small {
+      font-size: 14px;
+      color: #6b7280;
+      margin-top: 14px;
+    }
+
+    code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+  </style>
+
+  <script>
+    const STUDY_URL = "https://williaminsley.github.io/Behavioural-Biometrics-Data-Collection/";
+
+    function ua() {
+      return navigator.userAgent || navigator.vendor || window.opera || "";
+    }
+
+    function isIOS() {
+      return /iPhone|iPad|iPod/i.test(ua());
+    }
+
+    function isAndroid() {
+      return /Android/i.test(ua());
+    }
+
+    function isInstagram() {
+      return /Instagram/i.test(ua());
+    }
+
+    function isFacebookInApp() {
+      return /FBAN|FBAV/i.test(ua());
+    }
+
+    function isSnapchat() {
+      return /Snapchat/i.test(ua());
+    }
+
+    function isTikTok() {
+      return /TikTok/i.test(ua());
+    }
+
+    function isInAppBrowser() {
+      return (
+        isInstagram() ||
+        isFacebookInApp() ||
+        isSnapchat() ||
+        isTikTok()
+      );
+    }
+
+    function openStudyNormally() {
+      window.location.href = STUDY_URL;
+    }
+
+    function copyLink() {
+      navigator.clipboard.writeText(STUDY_URL)
+        .then(() => {
+          const el = document.getElementById("copyStatus");
+          if (el) el.textContent = "Link copied. Open Safari/Chrome and paste it.";
+        })
+        .catch(() => {
+          const el = document.getElementById("copyStatus");
+          if (el) el.textContent = "Could not copy automatically. Manually copy the link below.";
+        });
+    }
+
+    function fillDynamicInstructions() {
+      const browserName = document.getElementById("browserName");
+      const steps = document.getElementById("steps");
+      const manualLink = document.getElementById("manualLink");
+      const openBtn = document.getElementById("openBtn");
+
+      if (manualLink) manualLink.textContent = STUDY_URL;
+
+      if (!isInAppBrowser()) {
+        openBtn.textContent = "Open study";
+        return;
+      }
+
+      if (isInstagram()) {
+        if (browserName) browserName.textContent = "Instagram";
+        if (steps) {
+          steps.innerHTML = `
+            <li>Tap the <strong>•••</strong> menu in the top-right.</li>
+            <li>Select <strong>Open in Browser</strong> or <strong>Open in Safari</strong>.</li>
+            <li>Complete the study in Safari/Chrome, not inside Instagram.</li>
+          `;
+        }
+        return;
+      }
+
+      if (isSnapchat()) {
+        if (browserName) browserName.textContent = "Snapchat";
+        if (steps) {
+          steps.innerHTML = `
+            <li>Tap the menu/share controls in Snapchat’s browser.</li>
+            <li>Choose <strong>Open in Browser</strong>.</li>
+            <li>Then complete the study in Safari/Chrome.</li>
+          `;
+        }
+        return;
+      }
+
+      if (isFacebookInApp()) {
+        if (browserName) browserName.textContent = "Facebook";
+        if (steps) {
+          steps.innerHTML = `
+            <li>Tap the menu <strong>•••</strong>.</li>
+            <li>Select <strong>Open in external browser</strong>.</li>
+            <li>Use Safari/Chrome for the study.</li>
+          `;
+        }
+        return;
+      }
+
+      if (isTikTok()) {
+        if (browserName) browserName.textContent = "TikTok";
+        if (steps) {
+          steps.innerHTML = `
+            <li>Open the page menu.</li>
+            <li>Choose <strong>Open in browser</strong>.</li>
+            <li>Then complete the study in Safari/Chrome.</li>
+          `;
+        }
+        return;
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      fillDynamicInstructions();
+
+      if (!isInAppBrowser()) {
+        setTimeout(() => {
+          openStudyNormally();
+        }, 150);
+      }
+    });
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Open this study in Safari or Chrome</h1>
+      <p>
+        This behavioural biometrics study should not be completed inside an app browser.
+      </p>
+      <p class="muted">
+        In-app browsers can interfere with timing, storage, downloads, and input capture.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2><span id="browserName">App browser</span> instructions</h2>
+      <ol id="steps" class="steps">
+        <li>Open the page menu.</li>
+        <li>Select <strong>Open in Browser</strong>.</li>
+        <li>Use Safari or Chrome to complete the study.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <button id="openBtn" class="primary" onclick="openStudyNormally()">
+        Try opening study
+      </button>
+
+      <button class="secondary" onclick="copyLink()">
+        Copy study link
+      </button>
+
+      <p id="copyStatus" class="small"></p>
+      <p class="small">
+        Manual link:<br>
+        <code id="manualLink"></code>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
